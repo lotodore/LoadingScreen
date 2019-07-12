@@ -2,18 +2,19 @@
 
 #include "SSimpleLoadingScreen.h"
 
-#include "SScaleBox.h"
+#include "Widgets/Layout/SScaleBox.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBorder.h"
-#include "SSafeZone.h"
-#include "SThrobber.h"
-#include "SDPIScaler.h"
+#include "Widgets/Layout/SSafeZone.h"
+#include "Widgets/Images/SThrobber.h"
+#include "Widgets/Layout/SDPIScaler.h"
 #include "Engine/Texture2D.h"
 #include "Engine/UserInterfaceSettings.h"
+#include "Slate/DeferredCleanupSlateBrush.h"
 
 #define LOCTEXT_NAMESPACE "LoadingScreen"
 
@@ -39,8 +40,7 @@ void SSimpleLoadingScreen::Construct(const FArguments& InArgs, const FLoadingScr
 		UObject* ImageObject = ImageAsset.TryLoad();
 		if ( UTexture2D* LoadingImage = Cast<UTexture2D>(ImageObject) )
 		{
-			FVector2D Size = FVector2D(LoadingImage->GetSizeX(), LoadingImage->GetSizeY());
-			LoadingScreenBrush = MakeShareable(new FLoadingScreenBrush(LoadingImage, Size, FName(*ImageAsset.ToString())));
+			LoadingScreenBrush = FDeferredCleanupSlateBrush::CreateBrush(LoadingImage);
 
 			Root->AddSlot()
 			.HAlign(HAlign_Fill)
@@ -50,7 +50,7 @@ void SSimpleLoadingScreen::Construct(const FArguments& InArgs, const FLoadingScr
 				.Stretch(InScreenDescription.ImageStretch)
 				[
 					SNew(SImage)
-					.Image(LoadingScreenBrush.Get())
+					.Image(LoadingScreenBrush.IsValid() ? LoadingScreenBrush->GetSlateBrush() : nullptr)
 				]
 			];
 		}
@@ -65,6 +65,12 @@ void SSimpleLoadingScreen::Construct(const FArguments& InArgs, const FLoadingScr
 			.WrapTextAt(Settings->TipWrapAt)
 			.Font(TipFont)
 			.Text(Settings->Tips[TipIndex]);
+	}
+	else
+	{
+		// Need to use a spacer when being rendered on another thread, incrementing the SNullWidget will
+		// lead to shared ptr crashes.
+		TipWidget = SNew(SSpacer);
 	}
 
 	Root->AddSlot()
@@ -88,17 +94,7 @@ void SSimpleLoadingScreen::Construct(const FArguments& InArgs, const FLoadingScr
 					SNew(SHorizontalBox)
 
 					+ SHorizontalBox::Slot()
-					.Padding(FMargin(25, 0.0f, 0, 0))
-					.VAlign(VAlign_Center)
-					.AutoWidth()
-					[
-						SNew(SCircularThrobber)
-						// Convert font size to pixels, pixel_size = point_size * resolution / 72, then half it to get radius
-						.Radius((LoadingFont.Size * 96.0f/72.0f) / 2.0f)
-					]
-
-					+ SHorizontalBox::Slot()
-					.Padding(FMargin(40.0f, 0.0f, 0, 0))
+					.Padding(FMargin(20.0f, 0.0f, 0.0f, 10.0f))
 					.AutoWidth()
 					.VAlign(VAlign_Center)
 					[
