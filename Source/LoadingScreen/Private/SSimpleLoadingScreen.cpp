@@ -46,11 +46,15 @@ void SSimpleLoadingScreen::Construct(const FArguments& InArgs, const FLoadingScr
 			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Fill)
 			[
-				SNew(SScaleBox)
-				.Stretch(InScreenDescription.ImageStretch)
+				SNew(SDPIScaler)
+				.DPIScale(this, &SSimpleLoadingScreen::GetDPIScale)
 				[
-					SNew(SImage)
-					.Image(LoadingScreenBrush.IsValid() ? LoadingScreenBrush->GetSlateBrush() : nullptr)
+					SNew(SScaleBox)
+					.Stretch(InScreenDescription.ImageStretch)
+					[
+						SNew(SImage)
+						.Image(LoadingScreenBrush.IsValid() ? LoadingScreenBrush->GetSlateBrush() : nullptr)
+					]
 				]
 			];
 		}
