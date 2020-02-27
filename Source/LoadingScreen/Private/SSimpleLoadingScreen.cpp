@@ -1,17 +1,17 @@
-// Copyright 1998-2017 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "SSimpleLoadingScreen.h"
 
-#include "Widgets/Layout/SScaleBox.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Layout/SSpacer.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/SBoxPanel.h"
-#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Layout/SScaleBox.h"
+#include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SSafeZone.h"
-#include "Widgets/Images/SThrobber.h"
 #include "Widgets/Layout/SDPIScaler.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Images/SThrobber.h"
 #include "Engine/Texture2D.h"
 #include "Engine/UserInterfaceSettings.h"
 #include "Slate/DeferredCleanupSlateBrush.h"
@@ -21,10 +21,18 @@
 /////////////////////////////////////////////////////
 // SSimpleLoadingScreen
 
+static float PointSizeToSlateUnits(float PointSize)
+{
+	//FreeTypeConstants::HorizontalDPI = 96;
+	const float SlateFreeTypeHorizontalResolutionDPI = 96.0f;
+	const float FreeTypeNativeDPI = 72.0f;
+	const float PixelSize = PointSize * (SlateFreeTypeHorizontalResolutionDPI / FreeTypeNativeDPI);
+
+	return PixelSize;
+}
+
 void SSimpleLoadingScreen::Construct(const FArguments& InArgs, const FLoadingScreenDescription& InScreenDescription)
 {
-	LastComputedDPIScale = 1.0f;
-
 	const ULoadingScreenSettings* Settings = GetDefault<ULoadingScreenSettings>();
 
 	const FSlateFontInfo& TipFont = Settings->TipFont;
@@ -35,7 +43,7 @@ void SSimpleLoadingScreen::Construct(const FArguments& InArgs, const FLoadingScr
 	// If there's an image defined
 	if ( InScreenDescription.Images.Num() > 0 )
 	{
-		int32 ImageIndex = FMath::RandRange(0, InScreenDescription.Images.Num() - 1);
+		const int32 ImageIndex = FMath::RandRange(0, InScreenDescription.Images.Num() - 1);
 		const FStringAssetReference& ImageAsset = InScreenDescription.Images[ImageIndex];
 		UObject* ImageObject = ImageAsset.TryLoad();
 		if ( UTexture2D* LoadingImage = Cast<UTexture2D>(ImageObject) )
@@ -46,8 +54,11 @@ void SSimpleLoadingScreen::Construct(const FArguments& InArgs, const FLoadingScr
 			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Fill)
 			[
-				SNew(SDPIScaler)
-				.DPIScale(this, &SSimpleLoadingScreen::GetDPIScale)
+				SNew(SBorder)
+				.HAlign(HAlign_Fill)
+				.VAlign(VAlign_Fill)
+				.BorderBackgroundColor(InScreenDescription.BackgroundColor)
+				.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
 				[
 					SNew(SScaleBox)
 					.Stretch(InScreenDescription.ImageStretch)
@@ -63,7 +74,7 @@ void SSimpleLoadingScreen::Construct(const FArguments& InArgs, const FLoadingScr
 	TSharedRef<SWidget> TipWidget = SNullWidget::NullWidget;
 	if ( Settings->Tips.Num() > 0 )
 	{
-		int32 TipIndex = FMath::RandRange(0, Settings->Tips.Num() - 1);
+		const int32 TipIndex = FMath::RandRange(0, Settings->Tips.Num() - 1);
 
 		TipWidget = SNew(STextBlock)
 			.WrapTextAt(Settings->TipWrapAt)
@@ -84,7 +95,7 @@ void SSimpleLoadingScreen::Construct(const FArguments& InArgs, const FLoadingScr
 		SNew(SBorder)
 		.HAlign(HAlign_Fill)
 		.VAlign(VAlign_Fill)
-		.BorderBackgroundColor(FLinearColor(0, 0, 0, 0.75))
+		.BorderBackgroundColor(InScreenDescription.TipBackgroundColor)
 		.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
 		[
 			SNew(SSafeZone)
@@ -98,7 +109,16 @@ void SSimpleLoadingScreen::Construct(const FArguments& InArgs, const FLoadingScr
 					SNew(SHorizontalBox)
 
 					+ SHorizontalBox::Slot()
-					.Padding(FMargin(20.0f, 0.0f, 0.0f, 10.0f))
+					.Padding(FMargin(25, 0.0f, 0, 0))
+					.VAlign(VAlign_Center)
+					.AutoWidth()
+					[
+						SNew(SCircularThrobber)
+						.Radius(PointSizeToSlateUnits(LoadingFont.Size) / 2.0f)
+					]
+
+					+ SHorizontalBox::Slot()
+					.Padding(FMargin(40.0f, 0.0f, 0, 0))
 					.AutoWidth()
 					.VAlign(VAlign_Center)
 					[
@@ -134,22 +154,11 @@ void SSimpleLoadingScreen::Construct(const FArguments& InArgs, const FLoadingScr
 	];
 }
 
-void SSimpleLoadingScreen::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
-{
-	const FVector2D& LocalSize = AllottedGeometry.GetLocalSize();
-	FIntPoint Size((int32)LocalSize.X, (int32)LocalSize.Y);
-	const float NewScale = GetDefault<UUserInterfaceSettings>()->GetDPIScaleBasedOnSize(Size);
-
-	if ( NewScale != LastComputedDPIScale )
-	{
-		LastComputedDPIScale = NewScale;
-		SlatePrepass(1.0f);
-	}
-}
-
 float SSimpleLoadingScreen::GetDPIScale() const
 {
-	return LastComputedDPIScale;
+	const FVector2D& DrawSize = GetCachedGeometry().ToPaintGeometry().GetLocalSize();
+	const FIntPoint Size((int32)DrawSize.X, (int32)DrawSize.Y);
+	return GetDefault<UUserInterfaceSettings>()->GetDPIScaleBasedOnSize(Size);
 }
 
 #undef LOCTEXT_NAMESPACE
