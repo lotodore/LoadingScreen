@@ -54,11 +54,8 @@ void SSimpleLoadingScreen::Construct(const FArguments& InArgs, const FLoadingScr
 			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Fill)
 			[
-				SNew(SBorder)
-				.HAlign(HAlign_Fill)
-				.VAlign(VAlign_Fill)
-				.BorderBackgroundColor(InScreenDescription.BackgroundColor)
-				.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+				SNew(SDPIScaler)
+				.DPIScale(this, &SSimpleLoadingScreen::GetDPIScale)
 				[
 					SNew(SScaleBox)
 					.Stretch(InScreenDescription.ImageStretch)
@@ -109,16 +106,7 @@ void SSimpleLoadingScreen::Construct(const FArguments& InArgs, const FLoadingScr
 					SNew(SHorizontalBox)
 
 					+ SHorizontalBox::Slot()
-					.Padding(FMargin(25, 0.0f, 0, 0))
-					.VAlign(VAlign_Center)
-					.AutoWidth()
-					[
-						SNew(SCircularThrobber)
-						.Radius(PointSizeToSlateUnits(LoadingFont.Size) / 2.0f)
-					]
-
-					+ SHorizontalBox::Slot()
-					.Padding(FMargin(40.0f, 0.0f, 0, 0))
+					.Padding(FMargin(20.0f, 0.0f, 0.0f, 10.0f))
 					.AutoWidth()
 					.VAlign(VAlign_Center)
 					[
